@@ -1,4 +1,4 @@
-How to install library Mqtt4Processing
+How to install library mqtt4Processing
 
 
 Install with the "Add Library..." tool
@@ -26,19 +26,19 @@ By default the following locations are used for your sketchbook folder:
   For Windows users, the sketchbook folder is located inside 
     'My Documents'/Processing.
 
-The folder structure for library Mqtt4Processing should be as follows:
+The folder structure for library mqtt4Processing should be as follows:
 
 Processing
   libraries
-    Mqtt4Processing
+    mqtt4Processing
       examples
       library
-        Mqtt4Processing.jar
+        mqtt4Processing.jar
       reference
       src
                       
 Some folders like "examples" or "src" might be missing. After library 
-Mqtt4Processing has been successfully installed, restart the Processing 
+mqtt4Processing has been successfully installed, restart the Processing 
 application.
 
 

@@ -52,6 +52,9 @@ import processing.core.PApplet;
 
 public class MQTT {
 
+	/** Print debug messages */
+	public boolean DEBUG = false;
+
 	public static final int DISCONNECTED = 0;
 	public static final int CONNECTING = 1;
 	public static final int CONNECTED = 2;
@@ -119,7 +122,8 @@ public class MQTT {
 	}
 
 	private void welcome() {
-		System.out.println("##library.name## ##library.prettyVersion## by ##author##");
+		System.out
+				.println("##library.name## ##library.prettyVersion## by ##author##");
 	}
 
 	/**
@@ -131,6 +135,15 @@ public class MQTT {
 		return VERSION;
 	}
 
+	/**
+	 * Set the keep alive time out for the client in seconds; this defines at
+	 * what interval the client should send pings to the broker so that it
+	 * doesn't disconnect.
+	 * 
+	 * Default is set at 10 seconds.
+	 * 
+	 * @param seconds
+	 */
 	public void setKeepalive(int seconds) {
 		keepalive = seconds;
 	}
@@ -181,11 +194,13 @@ public class MQTT {
 				mConnection.getOutputStream().write(Messages.connect(id));
 				last_action = System.currentTimeMillis();
 			} catch (IOException e) {
-				PApplet.println("Ohno! Something went wrong... IO Error, failed to send CONNECT message.");
+				if (DEBUG)
+					PApplet.println("Ohno! Something went wrong... IO Error, failed to send CONNECT message.");
 				return;
 			}
 		} else {
-			PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be disconnected dude!");
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be disconnected dude!");
 		}
 	}
 
@@ -198,13 +213,15 @@ public class MQTT {
 				mConnection.getOutputStream().write(Messages.disconnect());
 				// last_action = System.currentTimeMillis();
 			} catch (IOException e) {
-				PApplet.println("Ohno! Something went wrong... IO Error, failed to send DISCONNECT message.");
+				if (DEBUG)
+					PApplet.println("Ohno! Something went wrong... IO Error, failed to send DISCONNECT message.");
 			}
 
 			try {
 				mConnection.close();
 			} catch (IOException e) {
-				PApplet.println("Ohno! Something went wrong... IO Error, failed to close the connection.");
+				if (DEBUG)
+					PApplet.println("Ohno! Something went wrong... IO Error, failed to close the connection.");
 			}
 
 			mMonitoringThread.stop();
@@ -212,35 +229,43 @@ public class MQTT {
 
 			state = DISCONNECTED;
 		} else {
-			PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
 		}
 	}
 
 	public void publish(String topic, String message) {
 		if (state == CONNECTED) {
 			try {
-				mConnection.getOutputStream().write(Messages.publish(topic, message.getBytes()));
+				mConnection.getOutputStream().write(
+						Messages.publish(topic, message.getBytes()));
 				last_action = System.currentTimeMillis();
 			} catch (IOException e) {
-				PApplet.println("Ohno! Something went wrong... IO Error, failed to send PUBLISH message.");
+				if (DEBUG)
+					PApplet.println("Ohno! Something went wrong... IO Error, failed to send PUBLISH message.");
 			}
 		} else {
-			PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
 		}
 	}
 
 	public void subscribe(String topic) {
 		if (state == CONNECTED) {
 			try {
-				mConnection.getOutputStream().write(Messages.subscribe(getMessageId(), topic, Messages.EXACTLY_ONCE));
+				mConnection.getOutputStream().write(
+						Messages.subscribe(getMessageId(), topic,
+								Messages.EXACTLY_ONCE));
 				last_action = System.currentTimeMillis();
 
 				registerSubscription(topic);
 			} catch (IOException e) {
-				PApplet.println("Ohno! Something went wrong... IO Error, failed to send SUBSCRIBE message.");
+				if (DEBUG)
+					PApplet.println("Ohno! Something went wrong... IO Error, failed to send SUBSCRIBE message.");
 			}
 		} else {
-			PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
 		}
 	}
 
@@ -254,8 +279,9 @@ public class MQTT {
 		try {
 			m = mPApplet.getClass().getMethod(topic, byte[].class);
 		} catch (Exception e) {
-			PApplet.println("Ohno! Something went wrong... MQTT Error, you forgot to add the subscription method! 1 "
-					+ topic);
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... MQTT Error, you forgot to add the subscription method! 1 "
+						+ topic);
 			return false;
 		}
 
@@ -263,8 +289,9 @@ public class MQTT {
 		if (m != null) {
 			subscriptions.put(topic, m);
 		} else {
-			PApplet.println("Ohno! Something went wrong... MQTT Error, you forgot to add the subscription method! 2 "
-					+ topic);
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... MQTT Error, you forgot to add the subscription method! 2 "
+						+ topic);
 			return false;
 		}
 		return true;
@@ -288,8 +315,10 @@ public class MQTT {
 		public void run() {
 			while (!finished) {
 
-				if (ping_sent && System.currentTimeMillis() - last_ping_request > (ping_grace * 1000)) {
-					PApplet.println("Ohno! Something went wrong... MQTT Error, didn't get a ping response - maybe the connection died.");
+				if (ping_sent
+						&& System.currentTimeMillis() - last_ping_request > (ping_grace * 1000)) {
+					if (DEBUG)
+						PApplet.println("Ohno! Something went wrong... MQTT Error, didn't get a ping response - maybe the connection died.");
 					disconnect();
 					ping_sent = false;
 				}
@@ -298,11 +327,13 @@ public class MQTT {
 					if (state == CONNECTED) {
 						synchronized (mConnection) {
 							try {
-								mConnection.getOutputStream().write(Messages.ping());
+								mConnection.getOutputStream().write(
+										Messages.ping());
 								ping_sent = true;
 								last_action = System.currentTimeMillis();
 							} catch (IOException e) {
-								PApplet.println("Ohno! Something went wrong... IO Error, failed to send PING message.");
+								if (DEBUG)
+									PApplet.println("Ohno! Something went wrong... IO Error, failed to send PING message.");
 							}
 						}
 					}
@@ -342,7 +373,8 @@ public class MQTT {
 				try {
 					ret = mConnection.getInputStream().read(buffer);
 				} catch (IOException e) {
-					PApplet.println("Ohno! Something went wrong... IO Error, failed to read messages.");
+					if (DEBUG)
+						PApplet.println("Ohno! Something went wrong... IO Error, failed to read messages.");
 					break;
 				}
 
@@ -351,17 +383,21 @@ public class MQTT {
 
 					switch (msg.type) {
 					case Messages.CONNECT:
-						PApplet.println("CONNECT");
+						if (DEBUG)
+							PApplet.println("CONNECT");
 						state = CONNECTING;
 						break;
 					case Messages.CONNACK:
-						PApplet.println("CONNACK");
+						if (DEBUG)
+							PApplet.println("CONNACK");
 						state = CONNECTED;
 						break;
 					case Messages.PUBLISH:
-						PApplet.println("PUBLISH");
+						if (DEBUG)
+							PApplet.println("PUBLISH");
 
-						Method eventMethod = subscriptions.get(msg.variableHeader.get("topic_name"));
+						Method eventMethod = subscriptions
+								.get(msg.variableHeader.get("topic_name"));
 						if (eventMethod != null) {
 							try {
 								eventMethod.invoke(mPApplet, msg.payload);
@@ -375,35 +411,45 @@ public class MQTT {
 						}
 						break;
 					case Messages.PUBACK:
-						PApplet.println("PUBACK");
+						if (DEBUG)
+							PApplet.println("PUBACK");
 						break;
 					case Messages.PUBREC:
-						PApplet.println("PUBREC");
+						if (DEBUG)
+							PApplet.println("PUBREC");
 						break;
 					case Messages.PUBREL:
-						PApplet.println("PUBREL");
+						if (DEBUG)
+							PApplet.println("PUBREL");
 						break;
 					case Messages.PUBCOMP:
-						PApplet.println("PUBCOMP");
+						if (DEBUG)
+							PApplet.println("PUBCOMP");
 						break;
 					case Messages.SUBSCRIBE:
-						PApplet.println("SUBSCRIBE");
+						if (DEBUG)
+							PApplet.println("SUBSCRIBE");
 						break;
 					case Messages.SUBACK:
-						PApplet.println("SUBACK");
+						if (DEBUG)
+							PApplet.println("SUBACK");
 						break;
 					case Messages.UNSUBSCRIBE:
-						PApplet.println("UNSUBSCRIBE");
+						if (DEBUG)
+							PApplet.println("UNSUBSCRIBE");
 						break;
 					case Messages.UNSUBACK:
-						PApplet.println("UNSUBACK");
+						if (DEBUG)
+							PApplet.println("UNSUBACK");
 						break;
 					case Messages.PINGREQ:
-						PApplet.println("PINGREQ");
+						if (DEBUG)
+							PApplet.println("PINGREQ");
 						last_ping_request = System.currentTimeMillis();
 						break;
 					case Messages.PINGRESP:
-						PApplet.println("PINGRESP");
+						if (DEBUG)
+							PApplet.println("PINGRESP");
 						ping_sent = false;
 						break;
 					}
