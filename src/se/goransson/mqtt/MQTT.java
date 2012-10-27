@@ -32,6 +32,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.sql.Time;
 import java.util.HashMap;
 
 import processing.core.PApplet;
@@ -78,13 +79,30 @@ public class MQTT {
 
 	private HashMap<String, Method> subscriptions;
 
-	private int keepalive = 55;
+	// Ping Related variables
+	/**
+	 * Keep alive defines the interval (in seconds) at which the client should
+	 * send pings to the broker to avoid disconnects.
+	 */
+	private long keepalive = 10;
 
-	private int ping_grace = 10;
+	/**
+	 * Defines at what time the last action was taken by the client (this is
+	 * used to determine if a ping should be sent or not)
+	 */
+	private long last_action = 0;
 
-	private long last_action;
+	/**
+	 * Defines the number of seconds that the client will wait for a ping
+	 * response before disconnecting.
+	 */
+	private long ping_grace = 5;
 
-	private long ping_timer = 0;
+	/** Storage for the last sent ping request message. */
+	private long last_ping_request = 0;
+
+	/** Defines if a ping request has been sent. */
+	private boolean ping_sent = false;
 
 	/**
 	 * a Constructor, usually called in the setup() method in your sketch to
@@ -101,8 +119,7 @@ public class MQTT {
 	}
 
 	private void welcome() {
-		System.out
-				.println("##library.name## ##library.prettyVersion## by ##author##");
+		System.out.println("##library.name## ##library.prettyVersion## by ##author##");
 	}
 
 	/**
@@ -141,8 +158,6 @@ public class MQTT {
 			return;
 		}
 
-		ping_timer = System.currentTimeMillis();
-		
 		mMonitoringThread = new MonitoringThread(mConnection);
 		Thread thread1 = new Thread(null, mMonitoringThread, "MonitoringThread");
 		thread1.start();
@@ -164,8 +179,7 @@ public class MQTT {
 		if (state == DISCONNECTED) {
 			try {
 				mConnection.getOutputStream().write(Messages.connect(id));
-
-				timer = System.currentTimeMillis();
+				last_action = System.currentTimeMillis();
 			} catch (IOException e) {
 				PApplet.println("Ohno! Something went wrong... IO Error, failed to send CONNECT message.");
 				return;
@@ -182,6 +196,7 @@ public class MQTT {
 		if (state == CONNECTED) {
 			try {
 				mConnection.getOutputStream().write(Messages.disconnect());
+				// last_action = System.currentTimeMillis();
 			} catch (IOException e) {
 				PApplet.println("Ohno! Something went wrong... IO Error, failed to send DISCONNECT message.");
 			}
@@ -204,8 +219,8 @@ public class MQTT {
 	public void publish(String topic, String message) {
 		if (state == CONNECTED) {
 			try {
-				mConnection.getOutputStream().write(
-						Messages.publish(topic, message.getBytes()));
+				mConnection.getOutputStream().write(Messages.publish(topic, message.getBytes()));
+				last_action = System.currentTimeMillis();
 			} catch (IOException e) {
 				PApplet.println("Ohno! Something went wrong... IO Error, failed to send PUBLISH message.");
 			}
@@ -217,9 +232,8 @@ public class MQTT {
 	public void subscribe(String topic) {
 		if (state == CONNECTED) {
 			try {
-				mConnection.getOutputStream().write(
-						Messages.subscribe(getMessageId(), topic,
-								Messages.EXACTLY_ONCE));
+				mConnection.getOutputStream().write(Messages.subscribe(getMessageId(), topic, Messages.EXACTLY_ONCE));
+				last_action = System.currentTimeMillis();
 
 				registerSubscription(topic);
 			} catch (IOException e) {
@@ -268,28 +282,35 @@ public class MQTT {
 
 	private class KeepaliveThread implements Runnable {
 
-		private volatile boolean finished;
+		private volatile boolean finished = false;
 
 		@Override
 		public void run() {
 			while (!finished) {
-				if (ping_timer != 0 && System.currentTimeMillis() - ping_timer > ping_grace) {
+
+				if (ping_sent && System.currentTimeMillis() - last_ping_request > (ping_grace * 1000)) {
+					PApplet.println("Ohno! Something went wrong... MQTT Error, didn't get a ping response - maybe the connection died.");
 					disconnect();
+					ping_sent = false;
 				}
 
-				if (System.currentTimeMillis() - ping_timer > (keepalive * 1000)) {
+				if (System.currentTimeMillis() - last_action > (keepalive * 1000)) {
 					if (state == CONNECTED) {
 						synchronized (mConnection) {
 							try {
-								mConnection.getOutputStream().write(
-										Messages.ping());
+								mConnection.getOutputStream().write(Messages.ping());
+								ping_sent = true;
+								last_action = System.currentTimeMillis();
 							} catch (IOException e) {
 								PApplet.println("Ohno! Something went wrong... IO Error, failed to send PING message.");
 							}
 						}
-
-						ping_timer = System.currentTimeMillis();
 					}
+				}
+
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
 				}
 			}
 		}
@@ -340,8 +361,7 @@ public class MQTT {
 					case Messages.PUBLISH:
 						PApplet.println("PUBLISH");
 
-						Method eventMethod = subscriptions
-								.get(msg.variableHeader.get("topic_name"));
+						Method eventMethod = subscriptions.get(msg.variableHeader.get("topic_name"));
 						if (eventMethod != null) {
 							try {
 								eventMethod.invoke(mPApplet, msg.payload);
@@ -380,11 +400,11 @@ public class MQTT {
 						break;
 					case Messages.PINGREQ:
 						PApplet.println("PINGREQ");
-						ping_timer = System.currentTimeMillis();
+						last_ping_request = System.currentTimeMillis();
 						break;
 					case Messages.PINGRESP:
 						PApplet.println("PINGRESP");
-						ping_timer = 0;
+						ping_sent = false;
 						break;
 					}
 				}

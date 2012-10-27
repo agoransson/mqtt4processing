@@ -5,7 +5,7 @@
 name = Mqtt4Processing
 
 # List of authors. Links can be provided using the syntax [author name](url).
-authorList = [Andreas Göransson](http://github.com/agoransson)
+authorList = [Andreas GÃ¶ransson](http://github.com/agoransson)
 
 # A web page for your library, NOT a direct link to where to download it.
 url = http://github.com/agoransson/mqtt4processing
