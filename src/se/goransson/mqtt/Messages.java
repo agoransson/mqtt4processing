@@ -6,6 +6,19 @@ import java.io.UnsupportedEncodingException;
 
 public class Messages {
 
+	// Quality of Service
+	
+	/** Fire and Forget */
+	protected static final byte AT_MOST_ONCE = 0x00;
+	
+	/** Acknowledged deliver */
+	protected static final byte AT_LEAST_ONCE = 0x01;
+	
+	/** Assured Delivery */
+	protected static final byte EXACTLY_ONCE = 0x02;
+	
+	// Message Types
+	
 	/** Message type: connect */
 	protected static final byte CONNECT = 0x01;
 
@@ -42,8 +55,11 @@ public class Messages {
 	/** Message type: Ping request */
 	protected static final byte PINGREQ = 0x0c;
 
+	/** Message type: Ping response. */
+	protected static final byte PINGRESP = 0x0d;
+
 	/** Message type: Disconnect from server */
-	protected static final byte DISCONNECT = 0x0d;
+	protected static final byte DISCONNECT = 0x0e;
 
 	/**
 	 * Create a CONNECT MQTT message.
@@ -53,13 +69,24 @@ public class Messages {
 	 * @throws UnsupportedEncodingException
 	 */
 	public static byte[] connect(String identifier)
-			throws UnsupportedEncodingException, IOException {
+			throws IOException {
 		ByteArrayOutputStream payload = new ByteArrayOutputStream();
 		payload.write(0);
 		payload.write(identifier.length());
 		payload.write(identifier.getBytes("UTF-8"));
 		return encode(CONNECT, false, 0, false, payload.toByteArray(), "false",
 				"false", "false", "false", "false");
+	}
+
+	/**
+	 * Create the DISCONNECT MQTT message, it has no variable header or payload
+	 * and it doesn't use any other attribute of the fixed header than the type.
+	 * 
+	 * @return The resulting MQTT package.
+	 * @throws IOException
+	 */
+	public static byte[] disconnect() throws IOException {
+		return encode(DISCONNECT, false, 0, false, new byte[0]);
 	}
 
 	/**
@@ -78,7 +105,37 @@ public class Messages {
 		return encode(PUBLISH, false, 0, false, message, Integer.toString(0),
 				topic);
 	}
+	
+	/**
+	 * Create a SUBSCRIBE message, it has a QoS of {@link #AT_LEAST_ONCE}.
+	 * 
+	 * @param message_id
+	 *            The message id of the subscribe, handled by the client.
+	 * @param subscribe_topic
+	 *            The topic to which the client wants to subscribe.
+	 * @param subscribed_qos
+	 *            The wanted QoS for the subscription, can be
+	 *            {@link #AT_MOST_ONCE}, {@link #AT_LEAST_ONCE}, or
+	 *            {@link #EXACTLY_ONCE}.
+	 * @return The MQTT package.
+	 * @throws IOException
+	 */
+	public static byte[] subscribe(int message_id, String subscribe_topic, int subscribed_qos) throws IOException {
+		ByteArrayOutputStream payload = new ByteArrayOutputStream();
 
+		payload.write((byte) ((subscribe_topic.length() >> 8) & 0xFF));
+		payload.write((byte) (subscribe_topic.length() & 0xFF));
+		payload.write(subscribe_topic.getBytes("UTF-8"));
+		payload.write(subscribed_qos);
+
+		return encode(SUBSCRIBE, false, AT_LEAST_ONCE, false, payload.toByteArray(), Integer.toString(message_id));
+	}
+
+
+	public static byte[] ping() throws IOException {
+		return encode(PINGREQ, false, 0, false, new byte[0]);
+	}
+	
 	/**
 	 * Low level compilation of an MQTT package.
 	 * 
@@ -151,6 +208,16 @@ public class Messages {
 			// variableHeader.write((message_id >> 8) & 0xFF); // Message ID MSB
 			// variableHeader.write(message_id & 0xFF); // Message ID LSB
 			break;
+		case DISCONNECT:
+			// Has no variable header
+			break;
+		case SUBSCRIBE:
+			// Variable header, read the params.
+			message_id = Integer.parseInt(params[0]);
+
+			variableHeader.write((message_id >> 8) & 0xFF); // Message ID MSB
+			variableHeader.write(message_id & 0xFF); // Message ID LSB
+			break;
 		}
 
 		// Remaining length
@@ -172,4 +239,76 @@ public class Messages {
 		// Return the finished message
 		return message.toByteArray();
 	}
+
+	public static MQTTMessage decode(byte[] message) {
+		int i = 0;
+		MQTTMessage mqtt = new MQTTMessage();
+		mqtt.type = (byte) ((message[i] >> 4) & 0x0F);
+		mqtt.DUP = ((message[i] >> 3) & 0x01) == 0 ? false : true;
+		mqtt.QoS = (message[i] >> 1) & 0x03;
+		mqtt.retain = (message[i++] & 0x01) == 0 ? false : true;
+
+		int multiplier = 1;
+		int len = 0;
+		byte digit = 0;
+		do {
+			digit = message[i++];
+			len += (digit & 127) * multiplier;
+			multiplier *= 128;
+		} while ((digit & 128) != 0);
+		mqtt.remainingLength = len;
+
+
+		int offset = 0;
+		
+		switch (mqtt.type) {
+		case CONNECT:
+			int protocol_name_len = (message[i++] << 8 | message[i++]);
+			mqtt.variableHeader.put("protocol_name", new String(message, i,
+					protocol_name_len));
+			mqtt.variableHeader.put("protocol_version", message[i++]);
+			mqtt.variableHeader.put("has_username",
+					((message[i++] << 7) & 0x01) == 0 ? false : true);
+			mqtt.variableHeader.put("has_password",
+					((message[i] << 6) & 0x01) == 0 ? false : true);
+			mqtt.variableHeader.put("will_retain",
+					((message[i] << 5) & 0x01) == 0 ? false : true);
+			mqtt.variableHeader.put("will_qos", ((message[i] << 3) & 0x03));
+			mqtt.variableHeader.put("will",
+					((message[i] << 2) & 0x01) == 0 ? false : true);
+			mqtt.variableHeader.put("clean_session",
+					((message[i] << 1) & 0x01) == 0 ? false : true);
+			int keep_alive_len = (message[i++] << 8 | message[i++]);
+			mqtt.variableHeader.put("keep_alive", new String(message, i,
+					keep_alive_len));
+			break;
+		case PUBLISH:
+			int topic_name_len = (message[i++] * 256 + message[i++]);
+			offset += 2;
+			
+			String protocol_name = new String(message, i, topic_name_len);
+			mqtt.variableHeader.put("topic_name", protocol_name);
+			offset += topic_name_len;
+			
+			int message_id = (message[i++] << 8 & 0xFF00 | message[i] & 0xFF);
+			mqtt.variableHeader.put("message_id", Integer.toString(message_id));
+			offset += 2;
+			
+			break;
+		case SUBSCRIBE:
+			mqtt.variableHeader.put("message_id",
+					(message[i++] << 8 | message[i++]));
+			break;
+		case PINGREQ:
+			break;
+		}
+
+		ByteArrayOutputStream payload = new ByteArrayOutputStream();
+		for (int b = offset; b < mqtt.remainingLength+2; b++)
+			payload.write(message[b]);
+		mqtt.payload = payload.toByteArray();
+
+		return mqtt;
+	}
+
 }
