@@ -1,5 +1,21 @@
 package se.goransson.mqtt;
 
+/*
+ * Copyright (C) 2012 Andreas Göransson, David Cuartielles
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -7,18 +23,18 @@ import java.io.UnsupportedEncodingException;
 public class Messages {
 
 	// Quality of Service
-	
+
 	/** Fire and Forget */
 	protected static final byte AT_MOST_ONCE = 0x00;
-	
+
 	/** Acknowledged deliver */
 	protected static final byte AT_LEAST_ONCE = 0x01;
-	
+
 	/** Assured Delivery */
 	protected static final byte EXACTLY_ONCE = 0x02;
-	
+
 	// Message Types
-	
+
 	/** Message type: connect */
 	protected static final byte CONNECT = 0x01;
 
@@ -68,8 +84,7 @@ public class Messages {
 	 * @throws IOException
 	 * @throws UnsupportedEncodingException
 	 */
-	public static byte[] connect(String identifier)
-			throws IOException {
+	public static byte[] connect(String identifier) throws IOException {
 		ByteArrayOutputStream payload = new ByteArrayOutputStream();
 		payload.write(0);
 		payload.write(identifier.length());
@@ -105,7 +120,7 @@ public class Messages {
 		return encode(PUBLISH, false, 0, false, message, Integer.toString(0),
 				topic);
 	}
-	
+
 	/**
 	 * Create a SUBSCRIBE message, it has a QoS of {@link #AT_LEAST_ONCE}.
 	 * 
@@ -120,7 +135,8 @@ public class Messages {
 	 * @return The MQTT package.
 	 * @throws IOException
 	 */
-	public static byte[] subscribe(int message_id, String subscribe_topic, int subscribed_qos) throws IOException {
+	public static byte[] subscribe(int message_id, String subscribe_topic,
+			int subscribed_qos) throws IOException {
 		ByteArrayOutputStream payload = new ByteArrayOutputStream();
 
 		payload.write((byte) ((subscribe_topic.length() >> 8) & 0xFF));
@@ -128,14 +144,14 @@ public class Messages {
 		payload.write(subscribe_topic.getBytes("UTF-8"));
 		payload.write(subscribed_qos);
 
-		return encode(SUBSCRIBE, false, AT_LEAST_ONCE, false, payload.toByteArray(), Integer.toString(message_id));
+		return encode(SUBSCRIBE, false, AT_LEAST_ONCE, false,
+				payload.toByteArray(), Integer.toString(message_id));
 	}
-
 
 	public static byte[] ping() throws IOException {
 		return encode(PINGREQ, false, 0, false, new byte[0]);
 	}
-	
+
 	/**
 	 * Low level compilation of an MQTT package.
 	 * 
@@ -258,9 +274,8 @@ public class Messages {
 		} while ((digit & 128) != 0);
 		mqtt.remainingLength = len;
 
-
 		int offset = 0;
-		
+
 		switch (mqtt.type) {
 		case CONNECT:
 			int protocol_name_len = (message[i++] << 8 | message[i++]);
@@ -285,15 +300,15 @@ public class Messages {
 		case PUBLISH:
 			int topic_name_len = (message[i++] * 256 + message[i++]);
 			offset += 2;
-			
+
 			String protocol_name = new String(message, i, topic_name_len);
 			mqtt.variableHeader.put("topic_name", protocol_name);
 			offset += topic_name_len;
-			
+
 			int message_id = (message[i++] << 8 & 0xFF00 | message[i] & 0xFF);
 			mqtt.variableHeader.put("message_id", Integer.toString(message_id));
 			offset += 2;
-			
+
 			break;
 		case SUBSCRIBE:
 			mqtt.variableHeader.put("message_id",
@@ -304,7 +319,7 @@ public class Messages {
 		}
 
 		ByteArrayOutputStream payload = new ByteArrayOutputStream();
-		for (int b = offset; b < mqtt.remainingLength+2; b++)
+		for (int b = offset; b < mqtt.remainingLength + 2; b++)
 			payload.write(message[b]);
 		mqtt.payload = payload.toByteArray();
 

@@ -1,55 +1,35 @@
-/**
- * ##library.name##
- * ##library.sentence##
- * ##library.url##
- *
- * Copyright ##copyright## ##author##
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- * 
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser General
- * Public License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place, Suite 330,
- * Boston, MA  02111-1307  USA
- * 
- * @author      ##author##
- * @modified    ##date##
- * @version     ##library.prettyVersion## (##library.version##)
- */
-
 package se.goransson.mqtt;
+
+/*
+ * Copyright (C) 2012 Andreas Göransson, David Cuartielles
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.sql.Time;
 import java.util.HashMap;
 
 import processing.core.PApplet;
 
 /**
- * This is a template class and can be used to start a new processing library or
- * tool. Make sure you rename this class as well as the name of the example
- * package 'template' to your own library or tool naming convention.
  * 
- * @example Hello
- * 
- *          (the tag @example followed by the name of an example included in
- *          folder 'examples' will automatically include the example in the
- *          javadoc.)
+ * @author ksango
  * 
  */
-
 public class MQTT {
 
 	/** Print debug messages */
