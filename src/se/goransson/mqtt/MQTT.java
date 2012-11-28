@@ -22,6 +22,8 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import processing.core.PApplet;
 
@@ -231,17 +233,28 @@ public class MQTT {
 	}
 
 	public void subscribe(String topic) {
-		if (state == CONNECTED) {
-			try {
-				mConnection.getOutputStream().write(
-						Messages.subscribe(getMessageId(), topic,
-								Messages.EXACTLY_ONCE));
-				last_action = System.currentTimeMillis();
+		Pattern p = Pattern.compile("[!-()<>/;\\*%$]");
+		Matcher m = p.matcher(topic);
 
-				registerSubscription(topic);
-			} catch (IOException e) {
-				if (DEBUG)
-					PApplet.println("Ohno! Something went wrong... IO Error, failed to send SUBSCRIBE message.");
+		if (m.find())
+			PApplet.println("Topic is not OK, use method subscribe(String topic, String method){} instead!");
+		else
+			subscribe(topic, topic);
+	}
+
+	public void subscribe(String topic, String method) {
+		if (state == CONNECTED) {
+			if (registerSubscription(topic, method)) {
+				try {
+					mConnection.getOutputStream().write(
+							Messages.subscribe(getMessageId(), topic,
+									Messages.EXACTLY_ONCE));
+					last_action = System.currentTimeMillis();
+
+				} catch (IOException e) {
+					if (DEBUG)
+						PApplet.println("Ohno! Something went wrong... IO Error, failed to send SUBSCRIBE message.");
+				}
 			}
 		} else {
 			if (DEBUG)
@@ -254,10 +267,11 @@ public class MQTT {
 	 * @param topic
 	 * @return
 	 */
-	private boolean registerSubscription(String topic) {
+	private boolean registerSubscription(String topic, String method) {
 		Method m = null;
+
 		try {
-			m = mPApplet.getClass().getMethod(topic, byte[].class);
+			m = mPApplet.getClass().getMethod(method, byte[].class);
 		} catch (Exception e) {
 			if (DEBUG)
 				PApplet.println("Ohno! Something went wrong... MQTT Error, you forgot to add the subscription method! 1 "
