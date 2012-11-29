@@ -142,14 +142,20 @@ public class MQTT {
 		try {
 			addr = InetAddress.getByName(host);
 		} catch (UnknownHostException e) {
-			PApplet.println("Ohno! Something went wrong... Unknown host error, I didn't understand the host name.");
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... Unknown host error, I didn't understand the host name.");
+			if (DEBUG)
+				e.printStackTrace();
 			return;
 		}
 
 		try {
 			mConnection = new TCPConnection(addr, port);
 		} catch (IOException e) {
-			PApplet.println("Ohno! Something went wrong... IO Error, failed to establish a connection to host.");
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... IO Error, failed to establish a connection to host.");
+			if (DEBUG)
+				e.printStackTrace();
 			return;
 		}
 
@@ -178,6 +184,8 @@ public class MQTT {
 			} catch (IOException e) {
 				if (DEBUG)
 					PApplet.println("Ohno! Something went wrong... IO Error, failed to send CONNECT message.");
+				if (DEBUG)
+					e.printStackTrace();
 				return;
 			}
 		} else {
@@ -197,6 +205,8 @@ public class MQTT {
 			} catch (IOException e) {
 				if (DEBUG)
 					PApplet.println("Ohno! Something went wrong... IO Error, failed to send DISCONNECT message.");
+				if (DEBUG)
+					e.printStackTrace();
 			}
 
 			try {
@@ -204,6 +214,8 @@ public class MQTT {
 			} catch (IOException e) {
 				if (DEBUG)
 					PApplet.println("Ohno! Something went wrong... IO Error, failed to close the connection.");
+				if (DEBUG)
+					e.printStackTrace();
 			}
 
 			mMonitoringThread.stop();
@@ -225,6 +237,8 @@ public class MQTT {
 			} catch (IOException e) {
 				if (DEBUG)
 					PApplet.println("Ohno! Something went wrong... IO Error, failed to send PUBLISH message.");
+				if (DEBUG)
+					e.printStackTrace();
 			}
 		} else {
 			if (DEBUG)
@@ -254,6 +268,8 @@ public class MQTT {
 				} catch (IOException e) {
 					if (DEBUG)
 						PApplet.println("Ohno! Something went wrong... IO Error, failed to send SUBSCRIBE message.");
+					if (DEBUG)
+						e.printStackTrace();
 				}
 			}
 		} else {
@@ -276,6 +292,8 @@ public class MQTT {
 			if (DEBUG)
 				PApplet.println("Ohno! Something went wrong... MQTT Error, you forgot to add the subscription method! 1 "
 						+ topic);
+			if (DEBUG)
+				e.printStackTrace();
 			return false;
 		}
 
@@ -328,6 +346,8 @@ public class MQTT {
 							} catch (IOException e) {
 								if (DEBUG)
 									PApplet.println("Ohno! Something went wrong... IO Error, failed to send PING message.");
+								if (DEBUG)
+									e.printStackTrace();
 							}
 						}
 					}
@@ -336,6 +356,8 @@ public class MQTT {
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
+					if (DEBUG)
+						e.printStackTrace();
 				}
 			}
 		}
@@ -369,6 +391,8 @@ public class MQTT {
 				} catch (IOException e) {
 					if (DEBUG)
 						PApplet.println("Ohno! Something went wrong... IO Error, failed to read messages.");
+					if (DEBUG)
+						e.printStackTrace();
 					break;
 				}
 
@@ -396,11 +420,14 @@ public class MQTT {
 							try {
 								eventMethod.invoke(mPApplet, msg.payload);
 							} catch (IllegalAccessException e) {
-								e.printStackTrace();
+								if (DEBUG)
+									e.printStackTrace();
 							} catch (IllegalArgumentException e) {
-								e.printStackTrace();
+								if (DEBUG)
+									e.printStackTrace();
 							} catch (InvocationTargetException e) {
-								e.printStackTrace();
+								if (DEBUG)
+									e.printStackTrace();
 							}
 						}
 						break;
