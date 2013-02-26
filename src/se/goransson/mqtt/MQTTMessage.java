@@ -30,4 +30,19 @@ public class MQTTMessage {
 	public Map<String, Object> variableHeader = new HashMap<String, Object>();
 
 	public byte[] payload;
+	
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("Type:" + type).append("\n");
+		sb.append("DUP:" + DUP).append("\n");
+		sb.append("QoS:" + QoS).append("\n");
+		sb.append("Retain:" + retain).append("\n");
+		sb.append("remaining length:" + remainingLength).append("\n");
+
+		sb.append("Topic name:" + variableHeader.get("topic_name")).append("\n");
+		sb.append("Topic len:" + variableHeader.get("topic_name_len")).append("\n");
+		
+		return sb.toString();
+	}
 }

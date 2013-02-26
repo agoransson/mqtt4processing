@@ -245,6 +245,24 @@ public class MQTT {
 				PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
 		}
 	}
+	
+	public void publish(String topic, byte[] buffer) {
+		if (state == CONNECTED) {
+			try {
+				mConnection.getOutputStream().write(
+						Messages.publish(topic, buffer));
+				last_action = System.currentTimeMillis();
+			} catch (IOException e) {
+				if (DEBUG)
+					PApplet.println("Ohno! Something went wrong... IO Error, failed to send PUBLISH message.");
+				if (DEBUG)
+					e.printStackTrace();
+			}
+		} else {
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
+		}
+	}
 
 	public void subscribe(String topic) {
 		Pattern p = Pattern.compile("[!-()<>/;\\*%$]");
@@ -287,7 +305,7 @@ public class MQTT {
 		Method m = null;
 
 		try {
-			m = mPApplet.getClass().getMethod(method, byte[].class);
+			m = mPApplet.getClass().getMethod(method, MQTTMessage.class);
 		} catch (Exception e) {
 			if (DEBUG)
 				PApplet.println("Ohno! Something went wrong... MQTT Error, you forgot to add the subscription method! 1 "
@@ -416,9 +434,10 @@ public class MQTT {
 
 						Method eventMethod = subscriptions
 								.get(msg.variableHeader.get("topic_name"));
+						
 						if (eventMethod != null) {
 							try {
-								eventMethod.invoke(mPApplet, msg.payload);
+								eventMethod.invoke(mPApplet, msg);
 							} catch (IllegalAccessException e) {
 								if (DEBUG)
 									e.printStackTrace();

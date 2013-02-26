@@ -198,8 +198,8 @@ public class Messages {
 			// boolean will_retain = Boolean.parseBoolean(params[3]);
 			// boolean cleansession = Boolean.parseBoolean(params[4]);
 
-			variableHeader.write(0x00); // LSB
-			variableHeader.write(MQTT.MQTT_PROTOCOL.getBytes("UTF-8").length);
+			variableHeader.write((MQTT.MQTT_PROTOCOL.getBytes("UTF-8").length >> 8) & 0xFF); // MSB
+			variableHeader.write(MQTT.MQTT_PROTOCOL.getBytes("UTF-8").length); // LSB
 			variableHeader.write(MQTT.MQTT_PROTOCOL.getBytes("UTF-8"));
 			variableHeader.write(MQTT.MQTT_VERSION);
 			// Connect flags
@@ -217,9 +217,8 @@ public class Messages {
 			int message_id = Integer.parseInt(params[0]);
 			String topic_name = params[1];
 
-			variableHeader.write(0x00); // Topic MSB
-			variableHeader.write(topic_name.getBytes("UTF-8").length); // Topic
-																		// LSB
+			variableHeader.write((topic_name.getBytes("UTF-8").length >> 8) & 0xFF); // MSB
+			variableHeader.write(topic_name.getBytes("UTF-8").length); // LSB
 			variableHeader.write(topic_name.getBytes("UTF-8")); // Topic
 			// variableHeader.write((message_id >> 8) & 0xFF); // Message ID MSB
 			// variableHeader.write(message_id & 0xFF); // Message ID LSB
@@ -267,49 +266,43 @@ public class Messages {
 		int multiplier = 1;
 		int len = 0;
 		byte digit = 0;
+		int headerOffset = 1;
 		do {
+			headerOffset++;
+			
 			digit = message[i++];
 			len += (digit & 127) * multiplier;
 			multiplier *= 128;
 		} while ((digit & 128) != 0);
 		mqtt.remainingLength = len;
 
-		int offset = 1;
-
+		
 		switch (mqtt.type) {
 		case CONNECT:
-			int protocol_name_len = (message[i++] << 8 | message[i++]);
-			mqtt.variableHeader.put("protocol_name", new String(message, i,
-					protocol_name_len));
-			mqtt.variableHeader.put("protocol_version", message[i++]);
-			mqtt.variableHeader.put("has_username",
-					((message[i++] << 7) & 0x01) == 0 ? false : true);
-			mqtt.variableHeader.put("has_password",
-					((message[i] << 6) & 0x01) == 0 ? false : true);
-			mqtt.variableHeader.put("will_retain",
-					((message[i] << 5) & 0x01) == 0 ? false : true);
-			mqtt.variableHeader.put("will_qos", ((message[i] << 3) & 0x03));
-			mqtt.variableHeader.put("will",
-					((message[i] << 2) & 0x01) == 0 ? false : true);
-			mqtt.variableHeader.put("clean_session",
-					((message[i] << 1) & 0x01) == 0 ? false : true);
-			int keep_alive_len = (message[i++] << 8 | message[i++]);
-			mqtt.variableHeader.put("keep_alive", new String(message, i,
-					keep_alive_len));
+			// The client should never receive a CONNECT message.
 			break;
+			
+		case CONNACK:
+			// TODO
+			byte reserved = message[i++];
+			mqtt.variableHeader.put("return_code", message[i++]);
+			
+			break;
+			
 		case PUBLISH:
 			int topic_name_len = (message[i++] * 256 + message[i++]);
-			offset += 2;
+			mqtt.variableHeader.put("topic_name_len", topic_name_len);
+			
+			String topic_name = new String(message, i, topic_name_len);
+			mqtt.variableHeader.put("topic_name", topic_name);
+			i += topic_name_len;
 
-			String protocol_name = new String(message, i, topic_name_len);
-			mqtt.variableHeader.put("topic_name", protocol_name);
-			offset += topic_name_len;
-
-			int message_id = (message[i++] << 8 & 0xFF00 | message[i] & 0xFF);
-			mqtt.variableHeader.put("message_id", Integer.toString(message_id));
-			offset += 2;
-
+			if( mqtt.QoS > 0 ){
+				int message_id = (message[i++] << 8 & 0xFF00 | message[i] & 0xFF);
+				mqtt.variableHeader.put("message_id", Integer.toString(message_id));
+			}
 			break;
+			
 		case SUBSCRIBE:
 			mqtt.variableHeader.put("message_id",
 					(message[i++] << 8 | message[i++]));
@@ -318,9 +311,16 @@ public class Messages {
 			break;
 		}
 
+//		StringBuilder sb = new StringBuilder();
+		
 		ByteArrayOutputStream payload = new ByteArrayOutputStream();
-		for (int b = offset; b < mqtt.remainingLength + offset; b++)
+		for (int b = i; b < headerOffset + mqtt.remainingLength; b++){
+//			sb.append("'").append((char)message[b]).append("'").append(" ");
 			payload.write(message[b]);
+		}
+//		System.out.println("Received");
+//		System.out.println(sb.toString());
+		
 		mqtt.payload = payload.toByteArray();
 
 		return mqtt;
