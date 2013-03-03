@@ -64,6 +64,8 @@ public class MQTT {
 
 	private HashMap<String, Method> subscriptions;
 
+	private Method raw = null;
+	
 	// Ping Related variables
 	/**
 	 * Keep alive defines the interval (in seconds) at which the client should
@@ -101,6 +103,16 @@ public class MQTT {
 		welcome();
 
 		subscriptions = new HashMap<String, Method>();
+		
+		// Add the raw method subscription (gets all subscriptions)
+		try {
+			raw = mPApplet.getClass().getMethod("rawMQTT", MQTTMessage.class);
+		} catch (Exception e) {
+			if (DEBUG)
+				PApplet.println("The raw method is not present");
+			if (DEBUG)
+				e.printStackTrace();
+		}
 	}
 
 	private void welcome() {
@@ -295,6 +307,24 @@ public class MQTT {
 				PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
 		}
 	}
+	
+	public void unsubscribe( String topic ){
+		if (state == CONNECTED) {
+			try {
+				mConnection.getOutputStream().write(
+						Messages.unsubscribe(getMessageId(), topic));
+				last_action = System.currentTimeMillis();
+			} catch (IOException e) {
+				if (DEBUG)
+					PApplet.println("Ohno! Something went wrong... IO Error, failed to send UNSUBSCRIBE message.");
+				if (DEBUG)
+					e.printStackTrace();
+			}
+		} else {
+			if (DEBUG)
+				PApplet.println("Ohno! Something went wrong... MQTT Error, you gots to be connected dude!");
+		}
+	}
 
 	/**
 	 * 
@@ -414,7 +444,7 @@ public class MQTT {
 					break;
 				}
 
-				if (ret > 0) {
+				if (ret > 0) {					
 					MQTTMessage msg = Messages.decode(buffer);
 
 					switch (msg.type) {
@@ -449,7 +479,21 @@ public class MQTT {
 									e.printStackTrace();
 							}
 						}
-						break;
+						
+						// Always send to "raw" output
+						try {
+							raw.invoke(mPApplet, msg);
+						} catch (IllegalAccessException e) {
+							if (DEBUG)
+								e.printStackTrace();
+						} catch (IllegalArgumentException e) {
+							if (DEBUG)
+								e.printStackTrace();
+						} catch (InvocationTargetException e) {
+							if (DEBUG)
+								e.printStackTrace();
+						}
+				break;
 					case Messages.PUBACK:
 						if (DEBUG)
 							PApplet.println("PUBACK");

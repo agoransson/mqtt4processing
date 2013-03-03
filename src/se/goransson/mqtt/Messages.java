@@ -148,6 +148,19 @@ public class Messages {
 				payload.toByteArray(), Integer.toString(message_id));
 	}
 
+	public static byte[] unsubscribe(int message_id, String... subscribe_topic) throws IOException {
+		ByteArrayOutputStream payload = new ByteArrayOutputStream();
+
+		for (String topic : subscribe_topic) {
+			payload.write((byte) ((topic.length() >> 8) & 0xFF));
+			payload.write((byte) (topic.length() & 0xFF));
+			payload.write(topic.getBytes("UTF-8"));
+		}
+		
+		return encode(UNSUBSCRIBE, false, AT_LEAST_ONCE, false,
+				payload.toByteArray(), Integer.toString(message_id));
+	}
+	
 	public static byte[] ping() throws IOException {
 		return encode(PINGREQ, false, 0, false, new byte[0]);
 	}
@@ -207,7 +220,7 @@ public class Messages {
 			// | (will ? 1 : 0) << 2 | (qos) << 3
 			// | (will_retain ? 1 : 0) << 5 | (password ? 1 : 0) << 6
 			// | (username ? 1 : 0) << 7);
-			variableHeader.write((0) << 1 | (0) << 2 | (0) << 3 | (0) << 5
+			variableHeader.write((1) << 1 | (0) << 2 | (0) << 3 | (0) << 5
 					| (0) << 6 | (0) << 7);
 			variableHeader.write(0x00);
 			variableHeader.write(0x0A);
@@ -217,16 +230,26 @@ public class Messages {
 			int message_id = Integer.parseInt(params[0]);
 			String topic_name = params[1];
 
-			variableHeader.write((topic_name.getBytes("UTF-8").length >> 8) & 0xFF); // MSB
+			variableHeader
+					.write((topic_name.getBytes("UTF-8").length >> 8) & 0xFF); // MSB
 			variableHeader.write(topic_name.getBytes("UTF-8").length); // LSB
 			variableHeader.write(topic_name.getBytes("UTF-8")); // Topic
-			// variableHeader.write((message_id >> 8) & 0xFF); // Message ID MSB
-			// variableHeader.write(message_id & 0xFF); // Message ID LSB
+			if (qos > AT_MOST_ONCE) {
+				variableHeader.write((message_id >> 8) & 0xFF); // Message ID MSB
+				variableHeader.write(message_id & 0xFF); // Message ID LSB
+			}
 			break;
 		case DISCONNECT:
 			// Has no variable header
 			break;
 		case SUBSCRIBE:
+			// Variable header, read the params.
+			message_id = Integer.parseInt(params[0]);
+
+			variableHeader.write((message_id >> 8) & 0xFF); // Message ID MSB
+			variableHeader.write(message_id & 0xFF); // Message ID LSB
+			break;
+		case UNSUBSCRIBE:
 			// Variable header, read the params.
 			message_id = Integer.parseInt(params[0]);
 
@@ -297,8 +320,9 @@ public class Messages {
 			mqtt.variableHeader.put("topic_name", topic_name);
 			i += topic_name_len;
 
-			if( mqtt.QoS > 0 ){
-				int message_id = (message[i++] << 8 & 0xFF00 | message[i] & 0xFF);
+			// Only read the ID if the Quality of Service is above AT_MOST_ONCE!
+			if( mqtt.QoS > AT_MOST_ONCE ){
+				int message_id = (message[i++] << 8 & 0xFF00 | message[i++] & 0xFF);
 				mqtt.variableHeader.put("message_id", Integer.toString(message_id));
 			}
 			break;
