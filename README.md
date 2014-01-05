@@ -8,7 +8,7 @@ MQTT stands for MQ Telemetry Transport. It is a publish/subscribe, extremely sim
 
 # Installation
 
-1. Download the latest version [here](https://github.com/agoransson/mqtt4processing/downloads)
+1. Download the latest version [here](http://www.santiclaws.se/mqtt4processing/mqtt4Processing.zip)
 2. Extract the zip-file into your /sketchbook/libraries/ folder.
 3. Restart Processing IDE
 
